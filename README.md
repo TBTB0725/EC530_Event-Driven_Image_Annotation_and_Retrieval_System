@@ -1,1 +1,0 @@
-# EC528_Event-Driven_Image_Annotation_and_Retrieval_System
