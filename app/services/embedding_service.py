@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import redis
 
@@ -15,6 +16,9 @@ from app.services.event_generator import (
     REDIS_PORT,
     VECTOR_INDEX_CHANNEL,
 )
+
+
+CLIP_MODEL_NAME = "openai/clip-vit-base-patch32"
 
 
 def main():
@@ -41,10 +45,50 @@ def _create_redis_client():
     )
 
 
-def generate_image_embedding(image_path):
-    """Placeholder CLIP embedding hook."""
+def _load_clip_components():
+    """Load CLIP processor and model lazily for runtime embedding.
 
-    return []
+    The imports happen only when embedding is actually requested, which keeps
+    unit tests and module import lightweight. The first real run may download
+    model weights from Hugging Face if they are not already cached locally.
+    """
+
+    try:
+        import torch
+        from PIL import Image
+        from transformers import AutoProcessor, CLIPModel
+    except ImportError as exc:
+        raise ImportError(
+            "Embedding requires transformers, torch, and pillow. Install them "
+            "with `pip install -r requirements.txt`."
+        ) from exc
+
+    processor = AutoProcessor.from_pretrained(CLIP_MODEL_NAME)
+    model = CLIPModel.from_pretrained(CLIP_MODEL_NAME)
+    model.eval()
+    return torch, Image, processor, model
+
+
+def generate_image_embedding(image_path):
+    """Generate a CLIP image embedding and return it as a JSON-safe list.
+
+    The vector is L2-normalized so downstream similarity search can use cosine
+    similarity or dot-product style comparisons more consistently.
+    """
+
+    torch, image_lib, processor, model = _load_clip_components()
+    resolved_image_path = Path(image_path)
+
+    with image_lib.open(resolved_image_path) as raw_image:
+        image = raw_image.convert("RGB")
+
+    inputs = processor(images=image, return_tensors="pt")
+
+    with torch.no_grad():
+        image_features = model.get_image_features(**inputs)
+        normalized_features = image_features / image_features.norm(dim=-1, keepdim=True)
+
+    return normalized_features[0].cpu().tolist()
 
 
 def handle_embedding_event(data):
