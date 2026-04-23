@@ -30,7 +30,7 @@ class AnnotationServiceTestCase(unittest.TestCase):
         message = package_document_message(
             image_id="img-123",
             image_path="app/storage/image_db/img-123.png",
-            annotations=[
+            objects=[
                 {"label": "dog", "confidence": 0.98, "bbox": [0.1, 0.2, 0.4, 0.6]}
             ],
         )
@@ -43,9 +43,10 @@ class AnnotationServiceTestCase(unittest.TestCase):
                 "event_name": "store_annotation",
                 "image_id": "img-123",
                 "image_path": "app/storage/image_db/img-123.png",
-                "annotations": [
+                "objects": [
                     {"label": "dog", "confidence": 0.98, "bbox": [0.1, 0.2, 0.4, 0.6]}
                 ],
+                "review": {"status": "pending", "notes": ""},
             },
         )
 
@@ -59,7 +60,8 @@ class AnnotationServiceTestCase(unittest.TestCase):
                     "event_name": "store_annotation",
                     "image_id": "img-123",
                     "image_path": "app/storage/image_db/img-123.png",
-                    "annotations": [],
+                    "objects": [],
+                    "review": {"status": "pending", "notes": ""},
                 }
             )
 
@@ -72,7 +74,8 @@ class AnnotationServiceTestCase(unittest.TestCase):
                     "event_name": "store_annotation",
                     "image_id": "img-123",
                     "image_path": "app/storage/image_db/img-123.png",
-                    "annotations": [],
+                    "objects": [],
+                    "review": {"status": "pending", "notes": ""},
                 }
             ),
         )
@@ -84,11 +87,10 @@ class AnnotationServiceTestCase(unittest.TestCase):
             "event_name": "annotate_image",
             "image_id": "img-123",
             "stored_image_path": "app/storage/image_db/img-123.png",
-            "original_image_path": "C:/images/cat.png",
         }
-        annotations = [{"label": "cat", "confidence": 0.99, "bbox": [0, 0, 1, 1]}]
+        objects = [{"label": "cat", "conf": 0.99, "bbox": [0, 0, 1, 1]}]
 
-        with patch.object(self.module, "run_annotation", return_value=annotations) as run_mock, patch.object(
+        with patch.object(self.module, "run_annotation", return_value=objects) as run_mock, patch.object(
             self.module, "publish_document_message"
         ) as publish_mock:
             handle_annotation_event(request)
@@ -101,6 +103,7 @@ class AnnotationServiceTestCase(unittest.TestCase):
                 "event_name": "store_annotation",
                 "image_id": "img-123",
                 "image_path": "app/storage/image_db/img-123.png",
-                "annotations": annotations,
+                "objects": objects,
+                "review": {"status": "pending", "notes": ""},
             }
         )

@@ -68,7 +68,8 @@ def handle_document_event(data):
         {
             "image_id": data["image_id"],
             "image_path": data["image_path"],
-            "annotations": data["annotations"],
+            "objects": data["objects"],
+            "review": data["review"],
         }
     )
     message = package_embedding_message(

@@ -90,20 +90,18 @@ def handle_upload_event(data):
     message = package_annotation_message(
         image_id=image_id,
         stored_image_path=str(stored_image_path),
-        original_image_path=str(source_path),
     )
     publish_annotation_message(message)
     return message
 
 
-def package_annotation_message(image_id, stored_image_path, original_image_path):
+def package_annotation_message(image_id, stored_image_path):
     """Build the image uploader -> annotation payload."""
 
     return {
         "event_name": ANNOTATE_IMAGE_EVENT,
         "image_id": image_id,
         "stored_image_path": stored_image_path,
-        "original_image_path": original_image_path,
     }
 
 

@@ -123,7 +123,6 @@ class ImageUploaderTestCase(unittest.TestCase):
         # The uploader should generate an image_id exactly once and reuse it in
         # both the stored file path and the next event payload.
         self.assertEqual(message["event_name"], "annotate_image")
-        self.assertEqual(message["original_image_path"], payload["image_path"])
         self.assertRegex(
             message["image_id"],
             r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
@@ -146,7 +145,6 @@ class ImageUploaderTestCase(unittest.TestCase):
         message = package_annotation_message(
             image_id="img-123",
             stored_image_path="app/storage/image_db/img-123.png",
-            original_image_path="C:/images/cat.png",
         )
 
         # This is the handoff contract from uploader -> annotation service.
@@ -156,7 +154,6 @@ class ImageUploaderTestCase(unittest.TestCase):
                 "event_name": "annotate_image",
                 "image_id": "img-123",
                 "stored_image_path": "app/storage/image_db/img-123.png",
-                "original_image_path": "C:/images/cat.png",
             },
         )
 
@@ -170,7 +167,6 @@ class ImageUploaderTestCase(unittest.TestCase):
                     "event_name": "annotate_image",
                     "image_id": "img-123",
                     "stored_image_path": "app/storage/image_db/img-123.png",
-                    "original_image_path": "C:/images/cat.png",
                 }
             )
 
@@ -182,7 +178,6 @@ class ImageUploaderTestCase(unittest.TestCase):
                     "event_name": "annotate_image",
                     "image_id": "img-123",
                     "stored_image_path": "app/storage/image_db/img-123.png",
-                    "original_image_path": "C:/images/cat.png",
                 }
             ),
         )

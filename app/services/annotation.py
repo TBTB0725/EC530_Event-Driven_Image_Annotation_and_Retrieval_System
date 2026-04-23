@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import redis
 
@@ -26,6 +27,9 @@ except ModuleNotFoundError:
         REDIS_PORT,
         STORE_ANNOTATION_EVENT,
     )
+
+
+YOLO_MODEL_NAME = "yolov8n.pt"
 
 
 def main():
@@ -52,14 +56,64 @@ def _create_redis_client():
     )
 
 
-def run_annotation(image_path):
-    """Placeholder annotation function.
+def _load_yolo_model():
+    """Load a YOLO model lazily so import-time stays lightweight.
 
-    The model logic is intentionally not implemented yet. This function exists
-    so the Redis communication flow can be wired before the YOLO step is added.
+    The model is imported only when annotation actually runs. This keeps unit
+    tests fast and avoids forcing the dependency to exist just to import the
+    module.
     """
 
-    return []
+    try:
+        from ultralytics import YOLO
+    except ImportError as exc:
+        raise ImportError(
+            "ultralytics is required for annotation. Install it with "
+            "`pip install -r requirements.txt`."
+        ) from exc
+
+    return YOLO(YOLO_MODEL_NAME)
+
+
+def _normalize_bbox(box_coordinates):
+    """Convert YOLO xyxy coordinates into an integer JSON-friendly bbox."""
+
+    return [int(round(value)) for value in box_coordinates]
+
+
+def _extract_objects_from_result(result):
+    """Transform a single YOLO result into document-style object records."""
+
+    objects = []
+    names = result.names
+
+    for box in result.boxes:
+        class_id = int(box.cls[0].item())
+        confidence = float(box.conf[0].item())
+        bbox = _normalize_bbox(box.xyxy[0].tolist())
+
+        objects.append(
+            {
+                "label": names[class_id],
+                "bbox": bbox,
+                "conf": round(confidence, 4),
+            }
+        )
+
+    return objects
+
+
+def run_annotation(image_path):
+    """Run YOLO annotation on an image and return document-style objects."""
+
+    resolved_image_path = Path(image_path)
+    model = _load_yolo_model()
+    results = model.predict(source=str(resolved_image_path), verbose=False)
+
+    if not results:
+        return []
+
+    return _extract_objects_from_result(results[0])
 
 
 def handle_annotation_event(data):
@@ -68,24 +122,32 @@ def handle_annotation_event(data):
     if data.get("event_name") != ANNOTATE_IMAGE_EVENT:
         return None
 
-    annotations = run_annotation(data["stored_image_path"])
+    objects = run_annotation(data["stored_image_path"])
     message = package_document_message(
         image_id=data["image_id"],
         image_path=data["stored_image_path"],
-        annotations=annotations,
+        objects=objects,
     )
     publish_document_message(message)
     return message
 
 
-def package_document_message(image_id, image_path, annotations):
-    """Build the annotation -> document DB payload."""
+def package_document_message(image_id, image_path, objects):
+    """Build the annotation -> document DB payload.
+
+    The payload is shaped like a document-oriented image record so downstream
+    persistence can store it directly with minimal transformation.
+    """
 
     return {
         "event_name": STORE_ANNOTATION_EVENT,
         "image_id": image_id,
         "image_path": image_path,
-        "annotations": annotations,
+        "objects": objects,
+        "review": {
+            "status": "pending",
+            "notes": "",
+        },
     }
 
 

@@ -78,7 +78,8 @@ class DocumentDBServiceTestCase(unittest.TestCase):
             "event_name": "store_annotation",
             "image_id": "img-123",
             "image_path": "app/storage/image_db/img-123.png",
-            "annotations": [{"label": "dog", "confidence": 0.97, "bbox": [1, 2, 3, 4]}],
+            "objects": [{"label": "dog", "conf": 0.97, "bbox": [1, 2, 3, 4]}],
+            "review": {"status": "pending", "notes": ""},
         }
 
         with patch.object(self.module, "persist_document") as persist_mock, patch.object(
@@ -92,7 +93,8 @@ class DocumentDBServiceTestCase(unittest.TestCase):
             {
                 "image_id": "img-123",
                 "image_path": "app/storage/image_db/img-123.png",
-                "annotations": [{"label": "dog", "confidence": 0.97, "bbox": [1, 2, 3, 4]}],
+                "objects": [{"label": "dog", "conf": 0.97, "bbox": [1, 2, 3, 4]}],
+                "review": {"status": "pending", "notes": ""},
             }
         )
         publish_mock.assert_called_once_with(
