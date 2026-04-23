@@ -1,30 +1,104 @@
-from pathlib import Path
-import redis
+"""Redis-driven image uploader service."""
+
+from __future__ import annotations
+
 import json
 import shutil
+import uuid
+from pathlib import Path
+
+import redis
+
+try:
+    from app.services.event_generator import (
+        ANNOTATE_IMAGE_EVENT,
+        ANNOTATION_REQUEST_CHANNEL,
+        IMAGE_UPLOAD_CHANNEL,
+        REDIS_DB,
+        REDIS_HOST,
+        REDIS_PORT,
+        UPLOAD_IMAGE_EVENT,
+    )
+except ModuleNotFoundError:
+    from event_generator import (
+        ANNOTATE_IMAGE_EVENT,
+        ANNOTATION_REQUEST_CHANNEL,
+        IMAGE_UPLOAD_CHANNEL,
+        REDIS_DB,
+        REDIS_HOST,
+        REDIS_PORT,
+        UPLOAD_IMAGE_EVENT,
+    )
+
 
 def main():
-    client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+    """Subscribe to upload requests and forward stored-image events."""
+
+    client = _create_redis_client()
     pubsub = client.pubsub()
-    pubsub.subscribe("image_upload_channel")
+    pubsub.subscribe(IMAGE_UPLOAD_CHANNEL)
 
     for message in pubsub.listen():
         if message["type"] != "message":
             continue
-        
-        data = json.loads(message["data"])
 
-        if data["event_name"] == "upload_image":
-            image_path = Path(data["image_path"])
-            base_path = Path(__file__).resolve().parent.parent
-            image_db_path = base_path/"storage"/"image_db"
-            destination_path = image_db_path / image_path.name
-            shutil.copy2(image_path, destination_path)
-        else:
-            continue
+        data = json.loads(message["data"])
+        handle_upload_event(data)
+
+
+def _create_redis_client():
+    return redis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        db=REDIS_DB,
+        decode_responses=True,
+    )
+
+
+def handle_upload_event(data):
+    """Handle a single upload event and notify the annotation service."""
+
+    if data.get("event_name") != UPLOAD_IMAGE_EVENT:
+        return None
+
+    source_path = Path(data["image_path"])
+    base_path = Path(__file__).resolve().parent.parent
+    image_db_path = base_path / "storage" / "image_db"
+    image_db_path.mkdir(parents=True, exist_ok=True)
+
+    image_id = str(uuid.uuid4())
+    stored_image_path = image_db_path / source_path.name
+
+    shutil.copy2(source_path, stored_image_path)
+
+    message = package_annotation_message(
+        image_id=image_id,
+        stored_image_path=str(stored_image_path),
+        original_image_path=str(source_path),
+    )
+    publish_annotation_message(message)
+    return message
+
+
+def package_annotation_message(image_id, stored_image_path, original_image_path):
+    """Build the image uploader -> annotation payload."""
+
+    return {
+        "event_name": ANNOTATE_IMAGE_EVENT,
+        "image_id": image_id,
+        "stored_image_path": stored_image_path,
+        "original_image_path": original_image_path,
+    }
+
+
+def publish_annotation_message(message):
+    """Publish an annotation request."""
+
+    client = _create_redis_client()
+    if hasattr(client, "publish"):
+        client.publish(ANNOTATION_REQUEST_CHANNEL, json.dumps(message))
+    return message
+
 
 if __name__ == "__main__":
     main()
-
-            
-
