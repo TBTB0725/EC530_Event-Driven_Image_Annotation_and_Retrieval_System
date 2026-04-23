@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import shutil
-import uuid
 from pathlib import Path
 
 import redis
@@ -66,7 +66,7 @@ def handle_upload_event(data):
         return None
 
     source_path = Path(data["image_path"])
-    image_id = str(uuid.uuid4())
+    image_id = generate_image_id(source_path)
     image_db_path = get_image_db_path()
     stored_image_path = build_stored_image_path(
         image_db_path=image_db_path,
@@ -74,7 +74,10 @@ def handle_upload_event(data):
         source_path=source_path,
     )
 
-    shutil.copy2(source_path, stored_image_path)
+    # Content-addressed storage prevents the same image from being copied into
+    # the image database multiple times.
+    if not stored_image_path.exists():
+        shutil.copy2(source_path, stored_image_path)
 
     message = package_annotation_message(
         image_id=image_id,
@@ -92,6 +95,21 @@ def package_annotation_message(image_id, stored_image_path):
         "image_id": image_id,
         "stored_image_path": stored_image_path,
     }
+
+
+def generate_image_id(source_path):
+    """Generate a stable image ID from the file content.
+
+    Using a SHA-256 hash makes duplicate uploads of the same image resolve to
+    the same logical image ID instead of creating multiple stored copies.
+    """
+
+    hasher = hashlib.sha256()
+    with Path(source_path).open("rb") as image_file:
+        for chunk in iter(lambda: image_file.read(8192), b""):
+            hasher.update(chunk)
+
+    return hasher.hexdigest()
 
 
 def get_image_db_path():

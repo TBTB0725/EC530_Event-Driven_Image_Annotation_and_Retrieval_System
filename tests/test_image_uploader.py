@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -66,6 +67,8 @@ class ImageUploaderTestCase(unittest.TestCase):
         fake_client = _FakeRedisClient(fake_pubsub)
 
         with patch.object(self.module.redis, "Redis", return_value=fake_client), patch.object(
+            self.module, "generate_image_id", return_value="a" * 64
+        ), patch.object(
             self.module.shutil, "copy2"
         ) as copy_mock:
             self.module.main()
@@ -89,6 +92,8 @@ class ImageUploaderTestCase(unittest.TestCase):
         fake_client = _FakeRedisClient(fake_pubsub)
 
         with patch.object(self.module.redis, "Redis", return_value=fake_client), patch.object(
+            self.module, "generate_image_id", return_value="a" * 64
+        ), patch.object(
             self.module.shutil, "copy2"
         ) as copy_mock:
             self.module.main()
@@ -103,10 +108,7 @@ class ImageUploaderTestCase(unittest.TestCase):
         self.assertEqual(copy_source, Path(payload["image_path"]))
         self.assertEqual(copy_destination.parent, REPO_ROOT / "app" / "storage" / "image_db")
         self.assertEqual(copy_destination.suffix, ".png")
-        self.assertRegex(
-            copy_destination.stem,
-            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-        )
+        self.assertRegex(copy_destination.stem, r"^[0-9a-f]{64}$")
 
     def test_handle_upload_event_returns_annotation_message_with_generated_image_id(self):
         handle_upload_event = require_attr(self, self.module, "handle_upload_event")
@@ -115,7 +117,9 @@ class ImageUploaderTestCase(unittest.TestCase):
             "image_path": "C:/Users/tester/Desktop/cat.png",
         }
 
-        with patch.object(self.module.shutil, "copy2"), patch.object(
+        with patch.object(self.module, "generate_image_id", return_value="b" * 64), patch.object(
+            self.module.shutil, "copy2"
+        ), patch.object(
             self.module, "publish_annotation_message"
         ) as publish_mock:
             message = handle_upload_event(payload)
@@ -123,12 +127,52 @@ class ImageUploaderTestCase(unittest.TestCase):
         # The uploader should generate an image_id exactly once and reuse it in
         # both the stored file path and the next event payload.
         self.assertEqual(message["event_name"], "annotate_image")
-        self.assertRegex(
-            message["image_id"],
-            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-        )
+        self.assertRegex(message["image_id"], r"^[0-9a-f]{64}$")
         self.assertTrue(message["stored_image_path"].endswith(f'{message["image_id"]}.png'))
         publish_mock.assert_called_once_with(message)
+
+    def test_generate_image_id_is_stable_for_same_file_content(self):
+        generate_image_id = require_attr(self, self.module, "generate_image_id")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            first_path = Path(temp_dir) / "first.png"
+            second_path = Path(temp_dir) / "second.png"
+            first_path.write_bytes(b"same image bytes")
+            second_path.write_bytes(b"same image bytes")
+
+            first_id = generate_image_id(first_path)
+            second_id = generate_image_id(second_path)
+
+        self.assertEqual(first_id, second_id)
+
+    def test_handle_upload_event_skips_copy_when_same_image_is_already_stored(self):
+        handle_upload_event = require_attr(self, self.module, "handle_upload_event")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "cat.png"
+            source_path.write_bytes(b"duplicate image bytes")
+            existing_storage_dir = Path(temp_dir) / "image_db"
+            existing_storage_dir.mkdir()
+
+            image_id = self.module.generate_image_id(source_path)
+            existing_stored_path = existing_storage_dir / f"{image_id}.png"
+            existing_stored_path.write_bytes(b"duplicate image bytes")
+
+            with patch.object(
+                self.module, "get_image_db_path", return_value=existing_storage_dir
+            ), patch.object(self.module.shutil, "copy2") as copy_mock, patch.object(
+                self.module, "publish_annotation_message"
+            ):
+                message = handle_upload_event(
+                    {
+                        "event_name": "upload_image",
+                        "image_path": str(source_path),
+                    }
+                )
+
+        copy_mock.assert_not_called()
+        self.assertEqual(message["image_id"], image_id)
+        self.assertEqual(message["stored_image_path"], str(existing_stored_path))
 
     def test_image_uploader_contract_includes_annotation_message_builder(self):
         # After storage, the uploader should hand off to the annotation stage.
