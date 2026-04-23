@@ -211,3 +211,4 @@ __marimo__/
 
 # Project runtime storage
 app/storage/image_db/
+app/storage/vector_index_data/
