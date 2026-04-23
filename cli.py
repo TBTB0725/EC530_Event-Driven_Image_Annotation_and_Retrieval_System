@@ -22,18 +22,16 @@ from app.services.event_generator import (
 
 
 def main():
-    """Simple interactive menu for publishing upload requests.
-
-    Query publishers are defined below as part of the Redis communication
-    contract, but the interactive menu is intentionally kept minimal for now.
-    """
+    """Interactive menu for upload and retrieval user flows."""
 
     exist = True
 
     while exist:
         user_choice = input(
             "1 Upload image\n"
-            "2 Exit\n"
+            "2 Query images by topic\n"
+            "3 Query similar images\n"
+            "4 Exit\n"
             "Please choose the option: "
         )
 
@@ -42,6 +40,16 @@ def main():
             message = package_upload_message(user_input)
             publish_upload_message(message)
         elif user_choice == "2":
+            topic = input("Please type the topic: ").strip()
+            top_k = prompt_top_k()
+            publish_query_message(package_topic_query_message(topic, top_k))
+            print_query_results(listen_for_query_results())
+        elif user_choice == "3":
+            user_input = prompt_for_image_path()
+            top_k = prompt_top_k()
+            publish_query_message(package_similarity_query_message(user_input, top_k))
+            print_query_results(listen_for_query_results())
+        elif user_choice == "4":
             exist = False
         else:
             print("Unknown option.")
@@ -153,7 +161,7 @@ def publish_query_message(message):
 
 
 def listen_for_query_results():
-    """Optional helper for reading asynchronous vector query results."""
+    """Wait for one asynchronous query result from the vector index service."""
 
     client = _create_redis_client()
     pubsub = client.pubsub()
@@ -165,8 +173,27 @@ def listen_for_query_results():
 
         data = json.loads(message["data"])
         if data.get("event_name") == QUERY_RESULT_EVENT:
-            print(data)
             return data
+
+
+def print_query_results(result_message):
+    """Render a query result payload in a user-friendly CLI format."""
+
+    if not result_message:
+        print("No query result received.")
+        return
+
+    print(f"Results for {result_message['source_event_name']}:")
+    results = result_message.get("results", [])
+    if not results:
+        print("No matching images found.")
+        return
+
+    for index, result in enumerate(results, start=1):
+        image_id = result.get("image_id", "unknown")
+        score = result.get("score", 0.0)
+        image_path = result.get("image_path", "")
+        print(f"{index}. image_id={image_id} score={score:.4f} path={image_path}")
 
 
 if __name__ == "__main__":

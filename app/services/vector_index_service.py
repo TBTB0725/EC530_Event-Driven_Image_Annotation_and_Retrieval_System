@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import redis
 
@@ -17,6 +18,10 @@ from app.services.event_generator import (
     REDIS_PORT,
     VECTOR_INDEX_CHANNEL,
     VECTOR_QUERY_CHANNEL,
+)
+from app.storage.vector_index import (
+    search_similar_vectors,
+    upsert_embedding as storage_upsert_embedding,
 )
 
 
@@ -54,31 +59,51 @@ def _create_redis_client():
 
 
 def upsert_embedding(image_id, embedding, metadata):
-    """Placeholder vector-index persistence hook."""
+    """Persist one embedding into the FAISS-backed storage layer."""
 
-    return {
-        "image_id": image_id,
-        "embedding": embedding,
-        "metadata": metadata,
-    }
+    return storage_upsert_embedding(image_id=image_id, embedding=embedding, metadata=metadata)
 
 
 def encode_text_query(topic):
-    """Placeholder text-query encoder."""
+    """Encode a topic string into the same CLIP embedding space as images."""
 
-    return [topic]
+    try:
+        import torch
+        from transformers import AutoProcessor, CLIPModel
+    except ImportError as exc:
+        raise ImportError(
+            "Vector query requires transformers and torch. Install them with "
+            "`pip install -r requirements.txt`."
+        ) from exc
+
+    model_name = "openai/clip-vit-base-patch32"
+    processor = AutoProcessor.from_pretrained(model_name)
+    model = CLIPModel.from_pretrained(model_name)
+    model.eval()
+
+    inputs = processor(text=[topic], return_tensors="pt", padding=True)
+
+    with torch.no_grad():
+        text_features = model.get_text_features(**inputs)
+        normalized_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
+    return normalized_features[0].cpu().tolist()
 
 
 def search_by_topic(encoded_topic, top_k=5):
-    """Placeholder topic-search hook."""
+    """Search the vector index using a text query embedding."""
 
-    return []
+    return search_similar_vectors(encoded_topic, top_k=top_k)
 
 
 def search_by_similar_image(image_path, top_k=5):
-    """Placeholder image-similarity search hook."""
+    """Search the vector index using an image query embedding."""
 
-    return []
+    from app.services.embedding_service import generate_image_embedding
+
+    resolved_image_path = Path(image_path)
+    query_embedding = generate_image_embedding(str(resolved_image_path))
+    return search_similar_vectors(query_embedding, top_k=top_k)
 
 
 def handle_index_event(data):

@@ -27,6 +27,7 @@ class VectorIndexServiceTestCase(unittest.TestCase):
         require_attr(self, self.module, "search_by_similar_image")
         require_attr(self, self.module, "handle_topic_query_event")
         require_attr(self, self.module, "handle_similarity_query_event")
+        require_attr(self, self.module, "package_query_result_message")
 
     def test_handle_index_event_stores_embedding_payload(self):
         handle_index_event = require_attr(self, self.module, "handle_index_event")
@@ -90,3 +91,28 @@ class VectorIndexServiceTestCase(unittest.TestCase):
         # text search, but accept an image path instead of a topic string.
         search_mock.assert_called_once_with("C:/images/query.png", top_k=3)
         self.assertEqual(results, [{"image_id": "img-234", "score": 0.97}])
+
+    def test_query_result_message_contract(self):
+        package_query_result_message = require_attr(
+            self, self.module, "package_query_result_message"
+        )
+
+        message = package_query_result_message(
+            "query_by_topic",
+            [{"image_id": "img-123", "score": 0.99, "image_path": "app/storage/image_db/img-123.png"}],
+        )
+
+        self.assertEqual(
+            message,
+            {
+                "event_name": "query_result",
+                "source_event_name": "query_by_topic",
+                "results": [
+                    {
+                        "image_id": "img-123",
+                        "score": 0.99,
+                        "image_path": "app/storage/image_db/img-123.png",
+                    }
+                ],
+            },
+        )

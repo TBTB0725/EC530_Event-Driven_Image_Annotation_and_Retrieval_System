@@ -80,7 +80,7 @@ class CLITestCase(unittest.TestCase):
     def test_main_publishes_upload_request_after_valid_menu_flow(self):
         package_upload_message = require_attr(self, self.cli, "package_upload_message")
 
-        with patch("builtins.input", side_effect=["1", "C:/images/cat.png", "2"]), patch.object(
+        with patch("builtins.input", side_effect=["1", "C:/images/cat.png", "4"]), patch.object(
             self.cli, "is_legal_path", return_value=True
         ), patch.object(
             self.cli, "package_upload_message", wraps=package_upload_message
@@ -93,6 +93,60 @@ class CLITestCase(unittest.TestCase):
         # one upload event before the user exits.
         package_mock.assert_called_once_with("C:/images/cat.png")
         publish_mock.assert_called_once()
+
+    def test_main_publishes_topic_query_and_prints_results(self):
+        package_topic_query_message = require_attr(self, self.cli, "package_topic_query_message")
+
+        with patch("builtins.input", side_effect=["2", "sunset beach", "5", "4"]), patch.object(
+            self.cli, "package_topic_query_message", wraps=package_topic_query_message
+        ) as package_mock, patch.object(
+            self.cli, "publish_query_message"
+        ) as publish_mock, patch.object(
+            self.cli,
+            "listen_for_query_results",
+            return_value={
+                "event_name": "query_result",
+                "source_event_name": "query_by_topic",
+                "results": [],
+            },
+        ) as listen_mock, patch.object(
+            self.cli, "print_query_results"
+        ) as print_mock:
+            self.cli.main()
+
+        package_mock.assert_called_once_with("sunset beach", 5)
+        publish_mock.assert_called_once()
+        listen_mock.assert_called_once()
+        print_mock.assert_called_once()
+
+    def test_main_publishes_similarity_query_and_prints_results(self):
+        package_similarity_query_message = require_attr(
+            self, self.cli, "package_similarity_query_message"
+        )
+
+        with patch("builtins.input", side_effect=["3", "C:/images/query.png", "3", "4"]), patch.object(
+            self.cli, "is_legal_path", return_value=True
+        ), patch.object(
+            self.cli, "package_similarity_query_message", wraps=package_similarity_query_message
+        ) as package_mock, patch.object(
+            self.cli, "publish_query_message"
+        ) as publish_mock, patch.object(
+            self.cli,
+            "listen_for_query_results",
+            return_value={
+                "event_name": "query_result",
+                "source_event_name": "query_similar_images",
+                "results": [],
+            },
+        ) as listen_mock, patch.object(
+            self.cli, "print_query_results"
+        ) as print_mock:
+            self.cli.main()
+
+        package_mock.assert_called_once_with("C:/images/query.png", 3)
+        publish_mock.assert_called_once()
+        listen_mock.assert_called_once()
+        print_mock.assert_called_once()
 
     def test_cli_contract_includes_topic_query_message_builder(self):
         # Future user case 2: user enters a text topic and requests matching
