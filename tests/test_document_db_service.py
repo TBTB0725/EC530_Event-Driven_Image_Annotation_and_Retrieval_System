@@ -26,6 +26,21 @@ class DocumentDBServiceTestCase(unittest.TestCase):
         require_attr(self, self.module, "publish_embedding_message")
         require_attr(self, self.module, "handle_document_event")
 
+    def test_persist_document_delegates_to_mongo_storage(self):
+        persist_document = require_attr(self, self.module, "persist_document")
+        record = {
+            "image_id": "img-123",
+            "image_path": "app/storage/image_db/img-123.png",
+            "objects": [{"label": "dog", "conf": 0.97, "bbox": [1, 2, 3, 4]}],
+            "review": {"status": "pending", "notes": ""},
+        }
+
+        with patch.object(self.module, "upsert_image_record", return_value=record) as upsert_mock:
+            stored_record = persist_document(record)
+
+        upsert_mock.assert_called_once_with(record)
+        self.assertEqual(stored_record, record)
+
     def test_embedding_message_contract(self):
         package_embedding_message = require_attr(self, self.module, "package_embedding_message")
 

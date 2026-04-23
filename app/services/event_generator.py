@@ -12,6 +12,11 @@ REDIS_PORT = 6379
 REDIS_DB = 0
 
 
+MONGO_URI = "mongodb://localhost:27017"
+MONGO_DATABASE_NAME = "image_annotation_system"
+MONGO_DOCUMENT_COLLECTION = "image_records"
+
+
 # Channels used by the project pipeline.
 IMAGE_UPLOAD_CHANNEL = "image_upload_channel"
 ANNOTATION_REQUEST_CHANNEL = "annotation_request_channel"
@@ -31,4 +36,3 @@ INDEX_EMBEDDING_EVENT = "index_embedding"
 QUERY_BY_TOPIC_EVENT = "query_by_topic"
 QUERY_SIMILAR_IMAGES_EVENT = "query_similar_images"
 QUERY_RESULT_EVENT = "query_result"
-

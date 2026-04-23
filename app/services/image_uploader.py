@@ -9,26 +9,15 @@ from pathlib import Path
 
 import redis
 
-try:
-    from app.services.event_generator import (
-        ANNOTATE_IMAGE_EVENT,
-        ANNOTATION_REQUEST_CHANNEL,
-        IMAGE_UPLOAD_CHANNEL,
-        REDIS_DB,
-        REDIS_HOST,
-        REDIS_PORT,
-        UPLOAD_IMAGE_EVENT,
-    )
-except ModuleNotFoundError:
-    from event_generator import (
-        ANNOTATE_IMAGE_EVENT,
-        ANNOTATION_REQUEST_CHANNEL,
-        IMAGE_UPLOAD_CHANNEL,
-        REDIS_DB,
-        REDIS_HOST,
-        REDIS_PORT,
-        UPLOAD_IMAGE_EVENT,
-    )
+from app.services.event_generator import (
+    ANNOTATE_IMAGE_EVENT,
+    ANNOTATION_REQUEST_CHANNEL,
+    IMAGE_UPLOAD_CHANNEL,
+    REDIS_DB,
+    REDIS_HOST,
+    REDIS_PORT,
+    UPLOAD_IMAGE_EVENT,
+)
 
 
 def main():

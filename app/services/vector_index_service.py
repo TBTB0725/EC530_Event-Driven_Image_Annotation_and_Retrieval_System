@@ -6,32 +6,18 @@ import json
 
 import redis
 
-try:
-    from app.services.event_generator import (
-        CLI_RESULT_CHANNEL,
-        INDEX_EMBEDDING_EVENT,
-        QUERY_BY_TOPIC_EVENT,
-        QUERY_RESULT_EVENT,
-        QUERY_SIMILAR_IMAGES_EVENT,
-        REDIS_DB,
-        REDIS_HOST,
-        REDIS_PORT,
-        VECTOR_INDEX_CHANNEL,
-        VECTOR_QUERY_CHANNEL,
-    )
-except ModuleNotFoundError:
-    from event_generator import (
-        CLI_RESULT_CHANNEL,
-        INDEX_EMBEDDING_EVENT,
-        QUERY_BY_TOPIC_EVENT,
-        QUERY_RESULT_EVENT,
-        QUERY_SIMILAR_IMAGES_EVENT,
-        REDIS_DB,
-        REDIS_HOST,
-        REDIS_PORT,
-        VECTOR_INDEX_CHANNEL,
-        VECTOR_QUERY_CHANNEL,
-    )
+from app.services.event_generator import (
+    CLI_RESULT_CHANNEL,
+    INDEX_EMBEDDING_EVENT,
+    QUERY_BY_TOPIC_EVENT,
+    QUERY_RESULT_EVENT,
+    QUERY_SIMILAR_IMAGES_EVENT,
+    REDIS_DB,
+    REDIS_HOST,
+    REDIS_PORT,
+    VECTOR_INDEX_CHANNEL,
+    VECTOR_QUERY_CHANNEL,
+)
 
 
 def main():

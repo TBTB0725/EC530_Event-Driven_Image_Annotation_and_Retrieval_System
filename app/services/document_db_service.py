@@ -6,26 +6,16 @@ import json
 
 import redis
 
-try:
-    from app.services.event_generator import (
-        DOCUMENT_DB_CHANNEL,
-        EMBED_IMAGE_EVENT,
-        EMBEDDING_REQUEST_CHANNEL,
-        REDIS_DB,
-        REDIS_HOST,
-        REDIS_PORT,
-        STORE_ANNOTATION_EVENT,
-    )
-except ModuleNotFoundError:
-    from event_generator import (
-        DOCUMENT_DB_CHANNEL,
-        EMBED_IMAGE_EVENT,
-        EMBEDDING_REQUEST_CHANNEL,
-        REDIS_DB,
-        REDIS_HOST,
-        REDIS_PORT,
-        STORE_ANNOTATION_EVENT,
-    )
+from app.services.event_generator import (
+    DOCUMENT_DB_CHANNEL,
+    EMBED_IMAGE_EVENT,
+    EMBEDDING_REQUEST_CHANNEL,
+    REDIS_DB,
+    REDIS_HOST,
+    REDIS_PORT,
+    STORE_ANNOTATION_EVENT,
+)
+from app.storage.document_db import upsert_image_record
 
 
 def main():
@@ -53,9 +43,9 @@ def _create_redis_client():
 
 
 def persist_document(record):
-    """Placeholder persistence hook for document metadata."""
+    """Persist annotation metadata into MongoDB."""
 
-    return record
+    return upsert_image_record(record)
 
 
 def handle_document_event(data):

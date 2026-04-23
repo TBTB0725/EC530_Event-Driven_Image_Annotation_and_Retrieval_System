@@ -7,26 +7,15 @@ from pathlib import Path
 
 import redis
 
-try:
-    from app.services.event_generator import (
-        ANNOTATE_IMAGE_EVENT,
-        ANNOTATION_REQUEST_CHANNEL,
-        DOCUMENT_DB_CHANNEL,
-        REDIS_DB,
-        REDIS_HOST,
-        REDIS_PORT,
-        STORE_ANNOTATION_EVENT,
-    )
-except ModuleNotFoundError:
-    from event_generator import (
-        ANNOTATE_IMAGE_EVENT,
-        ANNOTATION_REQUEST_CHANNEL,
-        DOCUMENT_DB_CHANNEL,
-        REDIS_DB,
-        REDIS_HOST,
-        REDIS_PORT,
-        STORE_ANNOTATION_EVENT,
-    )
+from app.services.event_generator import (
+    ANNOTATE_IMAGE_EVENT,
+    ANNOTATION_REQUEST_CHANNEL,
+    DOCUMENT_DB_CHANNEL,
+    REDIS_DB,
+    REDIS_HOST,
+    REDIS_PORT,
+    STORE_ANNOTATION_EVENT,
+)
 
 
 YOLO_MODEL_NAME = "yolov8n.pt"

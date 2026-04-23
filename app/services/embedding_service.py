@@ -6,26 +6,15 @@ import json
 
 import redis
 
-try:
-    from app.services.event_generator import (
-        EMBED_IMAGE_EVENT,
-        EMBEDDING_REQUEST_CHANNEL,
-        INDEX_EMBEDDING_EVENT,
-        REDIS_DB,
-        REDIS_HOST,
-        REDIS_PORT,
-        VECTOR_INDEX_CHANNEL,
-    )
-except ModuleNotFoundError:
-    from event_generator import (
-        EMBED_IMAGE_EVENT,
-        EMBEDDING_REQUEST_CHANNEL,
-        INDEX_EMBEDDING_EVENT,
-        REDIS_DB,
-        REDIS_HOST,
-        REDIS_PORT,
-        VECTOR_INDEX_CHANNEL,
-    )
+from app.services.event_generator import (
+    EMBED_IMAGE_EVENT,
+    EMBEDDING_REQUEST_CHANNEL,
+    INDEX_EMBEDDING_EVENT,
+    REDIS_DB,
+    REDIS_HOST,
+    REDIS_PORT,
+    VECTOR_INDEX_CHANNEL,
+)
 
 
 def main():
