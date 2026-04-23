@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -93,11 +94,42 @@ class ImageUploaderTestCase(unittest.TestCase):
             self.module.main()
 
         # Uploaded files are expected to be copied into the repo-managed image
-        # database folder before any later processing begins.
-        expected_destination = (
-            REPO_ROOT / "app" / "storage" / "image_db" / Path(payload["image_path"]).name
+        # database folder before any later processing begins. The uploader owns
+        # the new filename and should replace the original basename with a
+        # generated image ID.
+        copy_mock.assert_called_once()
+        copy_source, copy_destination = copy_mock.call_args.args
+
+        self.assertEqual(copy_source, Path(payload["image_path"]))
+        self.assertEqual(copy_destination.parent, REPO_ROOT / "app" / "storage" / "image_db")
+        self.assertEqual(copy_destination.suffix, ".png")
+        self.assertRegex(
+            copy_destination.stem,
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
         )
-        copy_mock.assert_called_once_with(Path(payload["image_path"]), expected_destination)
+
+    def test_handle_upload_event_returns_annotation_message_with_generated_image_id(self):
+        handle_upload_event = require_attr(self, self.module, "handle_upload_event")
+        payload = {
+            "event_name": "upload_image",
+            "image_path": "C:/Users/tester/Desktop/cat.png",
+        }
+
+        with patch.object(self.module.shutil, "copy2"), patch.object(
+            self.module, "publish_annotation_message"
+        ) as publish_mock:
+            message = handle_upload_event(payload)
+
+        # The uploader should generate an image_id exactly once and reuse it in
+        # both the stored file path and the next event payload.
+        self.assertEqual(message["event_name"], "annotate_image")
+        self.assertEqual(message["original_image_path"], payload["image_path"])
+        self.assertRegex(
+            message["image_id"],
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        )
+        self.assertTrue(message["stored_image_path"].endswith(f'{message["image_id"]}.png'))
+        publish_mock.assert_called_once_with(message)
 
     def test_image_uploader_contract_includes_annotation_message_builder(self):
         # After storage, the uploader should hand off to the annotation stage.
