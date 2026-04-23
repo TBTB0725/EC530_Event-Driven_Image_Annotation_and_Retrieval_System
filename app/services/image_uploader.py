@@ -51,8 +51,10 @@ def main():
     finally:
         # Close Redis resources when the process exits so the listener can shut
         # down cleanly instead of leaving the connection hanging.
-        pubsub.close()
-        client.close()
+        if hasattr(pubsub, "close"):
+            pubsub.close()
+        if hasattr(client, "close"):
+            client.close()
 
 
 def _create_redis_client():
