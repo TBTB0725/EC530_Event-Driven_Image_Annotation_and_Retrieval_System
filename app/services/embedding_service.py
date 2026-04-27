@@ -15,6 +15,7 @@ from app.services.event_generator import (
     REDIS_HOST,
     REDIS_PORT,
     VECTOR_INDEX_CHANNEL,
+    build_event_metadata,
 )
 
 
@@ -115,6 +116,7 @@ def package_index_message(image_id, image_path, embedding):
         "image_id": image_id,
         "image_path": image_path,
         "embedding": embedding,
+        **build_event_metadata(),
     }
 
 

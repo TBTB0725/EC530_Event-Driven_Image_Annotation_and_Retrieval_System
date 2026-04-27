@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from tests._helpers import REPO_ROOT, load_module, require_attr
+from tests._helpers import REPO_ROOT, assert_has_event_metadata, load_module, require_attr
 
 
 class _FakePubSub:
@@ -129,6 +129,7 @@ class ImageUploaderTestCase(unittest.TestCase):
         self.assertEqual(message["event_name"], "annotate_image")
         self.assertRegex(message["image_id"], r"^[0-9a-f]{64}$")
         self.assertTrue(message["stored_image_path"].endswith(f'{message["image_id"]}.png'))
+        assert_has_event_metadata(self, message)
         publish_mock.assert_called_once_with(message)
 
     def test_generate_image_id_is_stable_for_same_file_content(self):
@@ -192,36 +193,25 @@ class ImageUploaderTestCase(unittest.TestCase):
         )
 
         # This is the handoff contract from uploader -> annotation service.
-        self.assertEqual(
-            message,
-            {
-                "event_name": "annotate_image",
-                "image_id": "img-123",
-                "stored_image_path": "app/storage/image_db/img-123.png",
-            },
-        )
+        self.assertEqual(message["event_name"], "annotate_image")
+        self.assertEqual(message["image_id"], "img-123")
+        self.assertEqual(message["stored_image_path"], "app/storage/image_db/img-123.png")
+        assert_has_event_metadata(self, message)
 
     def test_publish_annotation_message_uses_annotation_request_channel(self):
         publish_annotation_message = require_attr(self, self.module, "publish_annotation_message")
         fake_client = MagicMock()
+        message = {
+            "event_name": "annotate_image",
+            "image_id": "img-123",
+            "stored_image_path": "app/storage/image_db/img-123.png",
+        }
 
         with patch.object(self.module.redis, "Redis", return_value=fake_client):
-            publish_annotation_message(
-                {
-                    "event_name": "annotate_image",
-                    "image_id": "img-123",
-                    "stored_image_path": "app/storage/image_db/img-123.png",
-                }
-            )
+            publish_annotation_message(message)
 
         # The channel name documents the intended next hop in the pipeline.
         fake_client.publish.assert_called_once_with(
             "annotation_request_channel",
-            json.dumps(
-                {
-                    "event_name": "annotate_image",
-                    "image_id": "img-123",
-                    "stored_image_path": "app/storage/image_db/img-123.png",
-                }
-            ),
+            json.dumps(message),
         )

@@ -6,6 +6,9 @@ between services. Business logic stays inside each service module.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from uuid import uuid4
+
 
 REDIS_HOST = "localhost"
 REDIS_PORT = 6379
@@ -36,3 +39,19 @@ INDEX_EMBEDDING_EVENT = "index_embedding"
 QUERY_BY_TOPIC_EVENT = "query_by_topic"
 QUERY_SIMILAR_IMAGES_EVENT = "query_similar_images"
 QUERY_RESULT_EVENT = "query_result"
+
+
+def build_event_metadata():
+    """Generate a lightweight event envelope for observability.
+
+    Each published message gets a unique event ID plus a UTC timestamp so
+    services can trace, log, and eventually deduplicate events more reliably.
+    """
+
+    return {
+        "event_id": f"evt_{uuid4().hex}",
+        "timestamp": datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z"),
+    }

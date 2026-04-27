@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from tests._helpers import load_module, require_attr
+from tests._helpers import assert_has_event_metadata, load_module, require_attr
 
 
 class VectorIndexServiceTestCase(unittest.TestCase):
@@ -102,17 +102,16 @@ class VectorIndexServiceTestCase(unittest.TestCase):
             [{"image_id": "img-123", "score": 0.99, "image_path": "app/storage/image_db/img-123.png"}],
         )
 
+        self.assertEqual(message["event_name"], "query_result")
+        self.assertEqual(message["source_event_name"], "query_by_topic")
         self.assertEqual(
-            message,
-            {
-                "event_name": "query_result",
-                "source_event_name": "query_by_topic",
-                "results": [
-                    {
-                        "image_id": "img-123",
-                        "score": 0.99,
-                        "image_path": "app/storage/image_db/img-123.png",
-                    }
-                ],
-            },
+            message["results"],
+            [
+                {
+                    "image_id": "img-123",
+                    "score": 0.99,
+                    "image_path": "app/storage/image_db/img-123.png",
+                }
+            ],
         )
+        assert_has_event_metadata(self, message)

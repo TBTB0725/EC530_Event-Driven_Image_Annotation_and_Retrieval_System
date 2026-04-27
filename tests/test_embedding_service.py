@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import MagicMock, patch
 
-from tests._helpers import load_module, require_attr
+from tests._helpers import assert_has_event_metadata, load_module, require_attr
 
 
 class EmbeddingServiceTestCase(unittest.TestCase):
@@ -35,42 +35,30 @@ class EmbeddingServiceTestCase(unittest.TestCase):
         )
 
         # This payload is the embedding -> vector index contract.
-        self.assertEqual(
-            message,
-            {
-                "event_name": "index_embedding",
-                "image_id": "img-123",
-                "image_path": "app/storage/image_db/img-123.png",
-                "embedding": [0.1, 0.2, 0.3],
-            },
-        )
+        self.assertEqual(message["event_name"], "index_embedding")
+        self.assertEqual(message["image_id"], "img-123")
+        self.assertEqual(message["image_path"], "app/storage/image_db/img-123.png")
+        self.assertEqual(message["embedding"], [0.1, 0.2, 0.3])
+        assert_has_event_metadata(self, message)
 
     def test_publish_index_message_uses_vector_index_channel(self):
         publish_index_message = require_attr(self, self.module, "publish_index_message")
         fake_client = MagicMock()
+        message = {
+            "event_name": "index_embedding",
+            "image_id": "img-123",
+            "image_path": "app/storage/image_db/img-123.png",
+            "embedding": [0.1, 0.2, 0.3],
+        }
 
         with patch.object(self.module.redis, "Redis", return_value=fake_client):
-            publish_index_message(
-                {
-                    "event_name": "index_embedding",
-                    "image_id": "img-123",
-                    "image_path": "app/storage/image_db/img-123.png",
-                    "embedding": [0.1, 0.2, 0.3],
-                }
-            )
+            publish_index_message(message)
 
         # Indexing should be decoupled from embedding through an explicit
         # message handoff.
         fake_client.publish.assert_called_once_with(
             "vector_index_channel",
-            json.dumps(
-                {
-                    "event_name": "index_embedding",
-                    "image_id": "img-123",
-                    "image_path": "app/storage/image_db/img-123.png",
-                    "embedding": [0.1, 0.2, 0.3],
-                }
-            ),
+            json.dumps(message),
         )
 
     def test_handle_embedding_event_generates_embedding_and_publishes_index_request(self):
@@ -92,11 +80,9 @@ class EmbeddingServiceTestCase(unittest.TestCase):
         # This test captures the service's orchestration role: compute vector,
         # then send one indexing event downstream.
         generate_mock.assert_called_once_with("app/storage/image_db/img-123.png")
-        publish_mock.assert_called_once_with(
-            {
-                "event_name": "index_embedding",
-                "image_id": "img-123",
-                "image_path": "app/storage/image_db/img-123.png",
-                "embedding": [0.25, 0.5, 0.75],
-            }
-        )
+        published_message = publish_mock.call_args.args[0]
+        self.assertEqual(published_message["event_name"], "index_embedding")
+        self.assertEqual(published_message["image_id"], "img-123")
+        self.assertEqual(published_message["image_path"], "app/storage/image_db/img-123.png")
+        self.assertEqual(published_message["embedding"], [0.25, 0.5, 0.75])
+        assert_has_event_metadata(self, published_message)

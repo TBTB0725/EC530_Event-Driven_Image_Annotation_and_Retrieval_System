@@ -17,6 +17,7 @@ from app.services.event_generator import (
     REDIS_HOST,
     REDIS_PORT,
     UPLOAD_IMAGE_EVENT,
+    build_event_metadata,
 )
 
 
@@ -94,6 +95,7 @@ def package_annotation_message(image_id, stored_image_path):
         "event_name": ANNOTATE_IMAGE_EVENT,
         "image_id": image_id,
         "stored_image_path": stored_image_path,
+        **build_event_metadata(),
     }
 
 

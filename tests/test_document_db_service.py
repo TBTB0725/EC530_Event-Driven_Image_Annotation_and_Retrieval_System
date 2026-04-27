@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import MagicMock, patch
 
-from tests._helpers import load_module, require_attr
+from tests._helpers import assert_has_event_metadata, load_module, require_attr
 
 
 class DocumentDBServiceTestCase(unittest.TestCase):
@@ -51,39 +51,28 @@ class DocumentDBServiceTestCase(unittest.TestCase):
 
         # After annotation is stored, embedding should only need image identity
         # and path to continue the pipeline.
-        self.assertEqual(
-            message,
-            {
-                "event_name": "embed_image",
-                "image_id": "img-123",
-                "image_path": "app/storage/image_db/img-123.png",
-            },
-        )
+        self.assertEqual(message["event_name"], "embed_image")
+        self.assertEqual(message["image_id"], "img-123")
+        self.assertEqual(message["image_path"], "app/storage/image_db/img-123.png")
+        assert_has_event_metadata(self, message)
 
     def test_publish_embedding_message_uses_embedding_request_channel(self):
         publish_embedding_message = require_attr(self, self.module, "publish_embedding_message")
         fake_client = MagicMock()
+        message = {
+            "event_name": "embed_image",
+            "image_id": "img-123",
+            "image_path": "app/storage/image_db/img-123.png",
+        }
 
         with patch.object(self.module.redis, "Redis", return_value=fake_client):
-            publish_embedding_message(
-                {
-                    "event_name": "embed_image",
-                    "image_id": "img-123",
-                    "image_path": "app/storage/image_db/img-123.png",
-                }
-            )
+            publish_embedding_message(message)
 
         # This channel is the explicit handoff from document persistence to the
         # embedding stage.
         fake_client.publish.assert_called_once_with(
             "embedding_request_channel",
-            json.dumps(
-                {
-                    "event_name": "embed_image",
-                    "image_id": "img-123",
-                    "image_path": "app/storage/image_db/img-123.png",
-                }
-            ),
+            json.dumps(message),
         )
 
     def test_handle_document_event_persists_record_and_requests_embedding(self):
@@ -112,10 +101,8 @@ class DocumentDBServiceTestCase(unittest.TestCase):
                 "review": {"status": "pending", "notes": ""},
             }
         )
-        publish_mock.assert_called_once_with(
-            {
-                "event_name": "embed_image",
-                "image_id": "img-123",
-                "image_path": "app/storage/image_db/img-123.png",
-            }
-        )
+        published_message = publish_mock.call_args.args[0]
+        self.assertEqual(published_message["event_name"], "embed_image")
+        self.assertEqual(published_message["image_id"], "img-123")
+        self.assertEqual(published_message["image_path"], "app/storage/image_db/img-123.png")
+        assert_has_event_metadata(self, published_message)

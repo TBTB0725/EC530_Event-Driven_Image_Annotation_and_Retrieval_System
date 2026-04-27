@@ -18,6 +18,7 @@ from app.services.event_generator import (
     REDIS_PORT,
     VECTOR_INDEX_CHANNEL,
     VECTOR_QUERY_CHANNEL,
+    build_event_metadata,
 )
 from app.storage.vector_index import (
     search_similar_vectors,
@@ -145,6 +146,7 @@ def package_query_result_message(source_event_name, results):
         "event_name": QUERY_RESULT_EVENT,
         "source_event_name": source_event_name,
         "results": results,
+        **build_event_metadata(),
     }
 
 

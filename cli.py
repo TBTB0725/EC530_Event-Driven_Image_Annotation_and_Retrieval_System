@@ -18,6 +18,7 @@ from app.services.event_generator import (
     REDIS_PORT,
     UPLOAD_IMAGE_EVENT,
     VECTOR_QUERY_CHANNEL,
+    build_event_metadata,
 )
 
 
@@ -112,6 +113,7 @@ def package_upload_message(path):
     return {
         "event_name": UPLOAD_IMAGE_EVENT,
         "image_path": path,
+        **build_event_metadata(),
     }
 
 
@@ -122,6 +124,7 @@ def package_topic_query_message(topic, top_k=5):
         "event_name": QUERY_BY_TOPIC_EVENT,
         "topic": topic,
         "top_k": top_k,
+        **build_event_metadata(),
     }
 
 
@@ -132,6 +135,7 @@ def package_similarity_query_message(path, top_k=5):
         "event_name": QUERY_SIMILAR_IMAGES_EVENT,
         "image_path": path,
         "top_k": top_k,
+        **build_event_metadata(),
     }
 
 

@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from tests._helpers import load_module, require_attr
+from tests._helpers import assert_has_event_metadata, load_module, require_attr
 
 
 class CLITestCase(unittest.TestCase):
@@ -55,26 +55,23 @@ class CLITestCase(unittest.TestCase):
 
         # This payload is the CLI-to-image-uploader contract for the upload
         # user case.
-        self.assertEqual(
-            message,
-            {
-                "event_name": "upload_image",
-                "image_path": "C:/images/cat.png",
-            },
-        )
+        self.assertEqual(message["event_name"], "upload_image")
+        self.assertEqual(message["image_path"], "C:/images/cat.png")
+        assert_has_event_metadata(self, message)
 
     def test_publish_upload_message_uses_image_upload_channel(self):
         publish_upload_message = require_attr(self, self.cli, "publish_upload_message")
         fake_client = MagicMock()
+        message = {"event_name": "upload_image", "image_path": "a.png"}
 
         with patch.object(self.cli.redis, "Redis", return_value=fake_client):
-            publish_upload_message({"event_name": "upload_image", "image_path": "a.png"})
+            publish_upload_message(message)
 
         # The channel name is part of the system contract because downstream
         # services subscribe to it explicitly.
         fake_client.publish.assert_called_once_with(
             "image_upload_channel",
-            json.dumps({"event_name": "upload_image", "image_path": "a.png"}),
+            json.dumps(message),
         )
 
     def test_main_publishes_upload_request_after_valid_menu_flow(self):
@@ -165,14 +162,10 @@ class CLITestCase(unittest.TestCase):
 
         # This test locks down the expected payload for topic search so later
         # services can implement against a stable message shape.
-        self.assertEqual(
-            message,
-            {
-                "event_name": "query_by_topic",
-                "topic": "sunset beach",
-                "top_k": 5,
-            },
-        )
+        self.assertEqual(message["event_name"], "query_by_topic")
+        self.assertEqual(message["topic"], "sunset beach")
+        self.assertEqual(message["top_k"], 5)
+        assert_has_event_metadata(self, message)
 
     def test_similarity_query_message_contract(self):
         package_similarity_query_message = require_attr(
@@ -182,11 +175,7 @@ class CLITestCase(unittest.TestCase):
         message = package_similarity_query_message("C:/images/query.png", top_k=3)
 
         # This is the CLI contract for image-to-image retrieval.
-        self.assertEqual(
-            message,
-            {
-                "event_name": "query_similar_images",
-                "image_path": "C:/images/query.png",
-                "top_k": 3,
-            },
-        )
+        self.assertEqual(message["event_name"], "query_similar_images")
+        self.assertEqual(message["image_path"], "C:/images/query.png")
+        self.assertEqual(message["top_k"], 3)
+        assert_has_event_metadata(self, message)

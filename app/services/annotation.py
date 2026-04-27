@@ -15,6 +15,7 @@ from app.services.event_generator import (
     REDIS_HOST,
     REDIS_PORT,
     STORE_ANNOTATION_EVENT,
+    build_event_metadata,
 )
 
 
@@ -137,6 +138,7 @@ def package_document_message(image_id, image_path, objects):
             "status": "pending",
             "notes": "",
         },
+        **build_event_metadata(),
     }
 
 

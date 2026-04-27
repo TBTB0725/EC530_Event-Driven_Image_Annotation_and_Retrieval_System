@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
+from datetime import datetime
 from pathlib import Path
 
 
@@ -45,3 +46,20 @@ def require_attr(testcase, module, attr_name: str):
         f"{module.__name__} should define `{attr_name}` as part of the service contract.",
     )
     return getattr(module, attr_name)
+
+
+def assert_has_event_metadata(testcase, message):
+    """Assert that a published message includes tracing metadata.
+
+    These fields are part of the event contract rather than the business
+    payload itself, so tests validate them once through a shared helper.
+    """
+
+    testcase.assertIn("event_id", message)
+    testcase.assertIn("timestamp", message)
+    testcase.assertTrue(message["event_id"].startswith("evt_"))
+
+    # Python's stdlib parser accepts "+00:00" but not a bare "Z", so normalize
+    # the UTC suffix before validating the timestamp format.
+    normalized_timestamp = message["timestamp"].replace("Z", "+00:00")
+    datetime.fromisoformat(normalized_timestamp)

@@ -14,6 +14,7 @@ from app.services.event_generator import (
     REDIS_HOST,
     REDIS_PORT,
     STORE_ANNOTATION_EVENT,
+    build_event_metadata,
 )
 from app.storage.document_db import upsert_image_record
 
@@ -77,6 +78,7 @@ def package_embedding_message(image_id, image_path):
         "event_name": EMBED_IMAGE_EVENT,
         "image_id": image_id,
         "image_path": image_path,
+        **build_event_metadata(),
     }
 
 
