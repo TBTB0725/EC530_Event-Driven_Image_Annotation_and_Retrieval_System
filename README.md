@@ -1,5 +1,7 @@
 # EC528 Event-Driven Image Annotation and Retrieval System
 
+> Explain video: [Watch on Google Drive](https://drive.google.com/file/d/1O9M2W6e4tFfuQ8xVty-zUneHbKxmsmQQ/view?usp=drive_link)
+
 This repo is an event-driven image annotation and retrieval prototype. A user
 can upload local images, let the system detect objects in them, store the
 annotation metadata, generate CLIP embeddings, and retrieve images by text or
